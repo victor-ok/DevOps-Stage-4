@@ -1,0 +1,133 @@
+services:
+  traefik:
+    image: traefik:v3.3
+    command: "--configFile=./config/traefik.yml"
+    ports:
+      - "8085:8085"
+      - "443:443"
+    volumes:
+      - "./traefik_data:/etc/traefik"
+      - "./config/configuration.yml:/config/traefik.yml:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./localhost.crt:/certs/localhost.crt:ro"
+      - "./localhost.key:/certs/localhost.key:ro"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`proxy.localhost`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8085"
+    networks:
+      - localhost_net
+  app:
+    image: app
+    build: ./frontend
+    labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.app.rule=Host(`localhost`)"
+    - "traefik.http.routers.app.entrypoints=websecure"
+    # - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+    - "traefik.http.services.app.loadbalancer.server.port=8080"
+    networks:
+      - localhost_net
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-api
+      - todos-api
+      - users-api
+    environment:
+      - PORT=${PORT}
+      - AUTH_API_ADDRESS=${AUTH_API_ADDRESS}
+      - TODOS_API_ADDRESS=${TODOS_API_ADDRESS}
+    
+
+  auth-api:
+    image: auth-api
+    build: ./auth-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth.rule=Host(`auth.localhost`)"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      # - "traefik.http.routers.auth.tls.certresolver=myresolver"
+      - "traefik.http.services.auth.loadbalancer.server.port=8081"
+    networks:
+      - localhost_net
+    ports:
+      - 8081:8081
+    depends_on:
+      - redis
+    environment:
+      - AUTH_API_PORT=${AUTH_API_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+      - USERS_API_ADDRESS=${USERS_API_ADDRESS}
+  
+  todos-api:
+    image: todos-api
+    build: ./todos-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.todos.rule=Host(`todos.localhost`)"
+      - "traefik.http.routers.todos.entrypoints=websecure"
+      # - "traefik.http.routers.auth.tls.certresolver=myresolver"
+      - "traefik.http.services.todos.loadbalancer.server.port=8082"
+    networks:
+      - localhost_net
+    ports:
+      - "8082:8082"
+    depends_on:
+      - redis
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_CHANNEL=${REDIS_CHANNEL}
+  
+  users-api:
+    image: users-api
+    build: ./users-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.users.rule=Host(`users.localhost`)"
+      - "traefik.http.routers.users.entrypoints=websecure"
+      # - "traefik.http.routers.users.tls.certresolver=myresolver"
+      - "traefik.http.services.users.loadbalancer.server.port=8083"
+    networks:
+      - localhost_net
+    ports:
+      - "8083:8083"
+    depends_on:
+      - redis
+    environment:
+      - SERVER_PORT=${SERVER_PORT}
+      - JWT_SECRET=${JWT_SECRET}
+  
+  log-message-processor:
+    image: log-message-processor
+    build: ./log-message-processor
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_CHANNEL=${REDIS_CHANNEL}
+    networks:
+      - localhost_net
+    
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - "./redis_data:/data"
+    networks:
+      - localhost_net
+
+networks:
+  localhost_net:
+    external: true
+
+volumes:
+  traefik_data:
+    driver: local
