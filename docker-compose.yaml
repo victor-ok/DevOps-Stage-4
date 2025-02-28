@@ -1,0 +1,163 @@
+services:
+  traefik:
+    image: traefik:v2.6
+    container_name: traefik
+    ports:
+      - "80:80"    # HTTP
+      - "443:443"  # HTTPS
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik/traefik.yaml:/etc/traefik/traefik.yaml
+      - ./traefik/config:/etc/traefik/config
+      - ./traefik/acme:/etc/traefik/acme
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$$apr1$$ruca84Hq$$mbjdMZBAG.KWn7vfN/SNK/"  # admin:password
+    networks:
+      - microservice-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    env_file:
+      - ./.env
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`victorok.cloud`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls=true"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+      - "traefik.http.routers.frontend.middlewares=global-middleware"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    depends_on:
+      - auth-api
+      - users-api
+      - todos-api
+    networks:
+      - microservice-network
+
+  auth-api:
+    build:
+      context: ./auth-apiy
+      dockerfile: Dockerfile
+    container_name: auth-api
+    env_file:
+      - ./.env
+    environment:
+      - ZIPKIN_URL=http://zipkin:9411
+    labels:
+      - "traefik.enable=true"
+      # Subdomain approach
+      - "traefik.http.routers.auth-api-domain.rule=Host(`auth.victorok.cloud`)"
+      - "traefik.http.routers.auth-api-domain.entrypoints=websecure"
+      - "traefik.http.routers.auth-api-domain.tls=true"
+      - "traefik.http.routers.auth-api-domain.tls.certresolver=myresolver"
+      - "traefik.http.routers.auth-api-domain.middlewares=global-middleware"
+      # Path prefix approach
+      - "traefik.http.routers.auth-api-path.rule=Host(`victorok.cloud`) && PathPrefix(`/api/auth`)"
+      - "traefik.http.routers.auth-api-path.entrypoints=websecure"
+      - "traefik.http.routers.auth-api-path.tls=true"
+      - "traefik.http.routers.auth-api-path.middlewares=auth-strip-prefix,global-middleware"
+      # Common configuration
+      - "traefik.http.services.auth-api.loadbalancer.server.port=8081"
+    depends_on:
+      - users-api
+      - redis-queue
+      - zipkin
+    networks:
+      - microservice-network
+
+  users-api:
+    build:
+      context: ./users-api
+      dockerfile: Dockerfile
+    container_name: users-api
+    env_file:
+      - ./.env
+    environment:
+      - ZIPKIN_URL=http://zipkin:9411
+    labels:
+      - "traefik.enable=true"
+      # Subdomain approach
+      - "traefik.http.routers.users-api-domain.rule=Host(`users.victorok.cloud`)"
+      - "traefik.http.routers.users-api-domain.entrypoints=websecure"
+      - "traefik.http.routers.users-api-domain.tls=true"
+      - "traefik.http.routers.users-api-domain.tls.certresolver=myresolver"
+      - "traefik.http.routers.users-api-domain.middlewares=global-middleware"
+      # Path prefix approach
+      - "traefik.http.routers.users-api-path.rule=Host(`victorok.cloud`) && PathPrefix(`/api/users`)"
+      - "traefik.http.routers.users-api-path.entrypoints=websecure"
+      - "traefik.http.routers.users-api-path.tls=true"
+      - "traefik.http.routers.users-api-path.middlewares=users-strip-prefix,global-middleware"
+      # Common configuration
+      - "traefik.http.services.users-api.loadbalancer.server.port=8083"
+    depends_on:
+      - redis-queue
+      - zipkin
+    networks:
+      - microservice-network
+
+  todos-api:
+    build:
+      context: ./todos-api
+      dockerfile: Dockerfile
+    container_name: todos-api
+    env_file:
+      - ./.env
+    environment:
+      - ZIPKIN_URL=http://zipkin:9411
+    labels:
+      - "traefik.enable=true"
+      # Subdomain approach
+      - "traefik.http.routers.todos-api-domain.rule=Host(`todos.victorok.cloud`)"
+      - "traefik.http.routers.todos-api-domain.entrypoints=websecure"
+      - "traefik.http.routers.todos-api-domain.tls=true"
+      - "traefik.http.routers.todos-api-domain.tls.certresolver=myresolver"
+      - "traefik.http.routers.todos-api-domain.middlewares=global-middleware"
+      # Path prefix approach
+      - "traefik.http.routers.todos-api-path.rule=Host(`victorok.cloud`) && PathPrefix(`/api/todos`)"
+      - "traefik.http.routers.todos-api-path.entrypoints=websecure"
+      - "traefik.http.routers.todos-api-path.tls=true"
+      - "traefik.http.routers.todos-api-path.middlewares=todos-strip-prefix,global-middleware"
+      # Common configuration
+      - "traefik.http.services.todos-api.loadbalancer.server.port=8082"
+    depends_on:
+      - redis-queue
+      - zipkin
+    networks:
+      - microservice-network
+
+  log-message-processor:
+    build:
+      context: ./log-message-processor
+      dockerfile: Dockerfile
+    container_name: log-message-processor
+    env_file:
+      - ./.env
+    environment:
+      - ZIPKIN_URL=http://zipkin:9411
+    depends_on:
+      - redis-queue
+      - zipkin
+    networks:
+      - microservice-network
+
+  redis-queue:
+    image: redis:alpine
+    container_name: redis-queue
+    networks:
+      - microservice-network
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - microservice-network
+
+networks:
+  microservice-network:
+    driver: bridge
