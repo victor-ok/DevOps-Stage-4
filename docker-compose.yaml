@@ -40,7 +40,7 @@ services:
 
   auth-api:
     build:
-      context: ./auth-apiy
+      context: ./auth-api
       dockerfile: Dockerfile
     container_name: auth-api
     env_file:
