@@ -29,7 +29,7 @@ services:
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
       - "traefik.http.routers.frontend.tls.certresolver=myresolver"
-      - "traefik.http.routers.frontend.middlewares=global-middleware"
+      - "traefik.http.routers.frontend.middlewares=global-middleware@file"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     depends_on:
       - auth-api
@@ -54,12 +54,12 @@ services:
       - "traefik.http.routers.auth-api-domain.entrypoints=websecure"
       - "traefik.http.routers.auth-api-domain.tls=true"
       - "traefik.http.routers.auth-api-domain.tls.certresolver=myresolver"
-      - "traefik.http.routers.auth-api-domain.middlewares=global-middleware"
+      - "traefik.http.routers.auth-api-domain.middlewares=global-middleware@file"
       # Path prefix approach
       - "traefik.http.routers.auth-api-path.rule=Host(`victorok.cloud`) && PathPrefix(`/api/auth`)"
       - "traefik.http.routers.auth-api-path.entrypoints=websecure"
       - "traefik.http.routers.auth-api-path.tls=true"
-      - "traefik.http.routers.auth-api-path.middlewares=auth-strip-prefix,global-middleware"
+      - "traefik.http.routers.auth-api-path.middlewares=auth-strip-prefix@file,global-middleware@file"
       # Common configuration
       - "traefik.http.services.auth-api.loadbalancer.server.port=8081"
     depends_on:
@@ -85,12 +85,12 @@ services:
       - "traefik.http.routers.users-api-domain.entrypoints=websecure"
       - "traefik.http.routers.users-api-domain.tls=true"
       - "traefik.http.routers.users-api-domain.tls.certresolver=myresolver"
-      - "traefik.http.routers.users-api-domain.middlewares=global-middleware"
+      - "traefik.http.routers.users-api-domain.middlewares=global-middleware@file"
       # Path prefix approach
       - "traefik.http.routers.users-api-path.rule=Host(`victorok.cloud`) && PathPrefix(`/api/users`)"
       - "traefik.http.routers.users-api-path.entrypoints=websecure"
       - "traefik.http.routers.users-api-path.tls=true"
-      - "traefik.http.routers.users-api-path.middlewares=users-strip-prefix,global-middleware"
+      - "traefik.http.routers.users-api-path.middlewares=users-strip-prefix@file,global-middleware@file"
       # Common configuration
       - "traefik.http.services.users-api.loadbalancer.server.port=8083"
     depends_on:
@@ -115,12 +115,12 @@ services:
       - "traefik.http.routers.todos-api-domain.entrypoints=websecure"
       - "traefik.http.routers.todos-api-domain.tls=true"
       - "traefik.http.routers.todos-api-domain.tls.certresolver=myresolver"
-      - "traefik.http.routers.todos-api-domain.middlewares=global-middleware"
+      - "traefik.http.routers.todos-api-domain.middlewares=global-middleware@file"
       # Path prefix approach
       - "traefik.http.routers.todos-api-path.rule=Host(`victorok.cloud`) && PathPrefix(`/api/todos`)"
       - "traefik.http.routers.todos-api-path.entrypoints=websecure"
       - "traefik.http.routers.todos-api-path.tls=true"
-      - "traefik.http.routers.todos-api-path.middlewares=todos-strip-prefix,global-middleware"
+      - "traefik.http.routers.todos-api-path.middlewares=todos-strip-prefix@file,global-middleware@file"
       # Common configuration
       - "traefik.http.services.todos-api.loadbalancer.server.port=8082"
     depends_on:
